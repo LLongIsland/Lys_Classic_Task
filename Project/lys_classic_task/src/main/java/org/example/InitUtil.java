@@ -58,34 +58,28 @@ public class InitUtil {
     }
 
     /**
-     * @Description: 将target目录中的class文件加入域
+     * @Description: 递归地将target目录中的class文件加入域
      * @Author: Li Yongshao
      * @date: 2020/11/16
      */
-    private static void initScope() throws InvalidClassFileException {
-        File targetFolder = new File(target);
-        File[] files = targetFolder.listFiles();
-        assert files != null;
-        for (File file : files) {
-            if (file.isDirectory() && file.getName().equals("classes")) {  //加入classes文件夹内的class文件
-                getDirEx(file);
-            } else if (file.isDirectory() && file.getName().equals("test-classes")) {  //加入test-classes文件夹内的class文件
-                getDirEx(file);
+    private static void initScope(String path) throws InvalidClassFileException {
+        File file=new File(path);
+        if(file.exists()){
+            File[] files=file.listFiles();
+            if(!(files==null||files.length==0)){
+                for(File subFile:files){
+                    if(subFile.isDirectory()){
+                        initScope(subFile.getAbsolutePath());
+                    }else if(subFile.getName().endsWith(".class")){  //将class文件加入域
+                        scope.addClassFileToScope(ClassLoaderReference.Application,subFile);
+                    }
+                }
             }
+        }else {
+            System.out.println("File not exists!");
         }
     }
 
-    private static void getDirEx(File file) throws InvalidClassFileException {
-        File[] testFiles = file.listFiles();
-        assert testFiles != null;
-        testFiles=testFiles[0].listFiles();
-        assert testFiles != null;
-        testFiles=testFiles[0].listFiles();
-        assert testFiles != null;
-        for (File testFile : testFiles) {
-            scope.addClassFileToScope(ClassLoaderReference.Application, testFile);
-        }
-    }
 
     /**
      * @Description: 初始化载入点，初始化图
@@ -103,11 +97,11 @@ public class InitUtil {
         init();
         if(args.length==0){
             parseArgs(new String[]{"-c",
-                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\0-CMD\\target",
-                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\0-CMD\\data\\change_info.txt"});
+                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\target",
+                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\data\\change_info.txt"});
         }
         else parseArgs(args);
-        initScope();
+        initScope(target);
         initGraph();
         if(selectType==0)
             new AugUtil(cg,change_info).classLevelSelect();
