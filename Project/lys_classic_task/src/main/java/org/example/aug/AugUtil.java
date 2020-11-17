@@ -5,6 +5,7 @@ import com.ibm.wala.classLoader.ShrikeBTMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.cha.CHACallGraph;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -16,27 +17,30 @@ import java.util.Iterator;
  */
 public class AugUtil {
     private String path;
+    private String[] changeInfo;
     private CHACallGraph cg;
     private ArrayList<MethodEdge> methodEdgePairs;
     private ArrayList<ClassEdge> classEdgePairs;
     private ArrayList<AugEntry> classRecord;
+    private ArrayList<ShrikeBTMethod> selectedMethods;
 
-    public void getDAG(){
-        for(CGNode node:cg){
-            if(node.getMethod() instanceof ShrikeBTMethod){
-                ShrikeBTMethod method=(ShrikeBTMethod)node.getMethod();
-                if("Application".equals(method.getDeclaringClass().getClassLoader().toString())){
-                    String classInnerName=method.getDeclaringClass().getName().toString(); //类的内部表示
-                    String signature=method.getSignature(); //方法签名
+    public void getDAG() {
+        for (CGNode node : cg) {
+            if (node.getMethod() instanceof ShrikeBTMethod) {
+                ShrikeBTMethod method = (ShrikeBTMethod) node.getMethod();
+                if ("Application".equals(method.getDeclaringClass().getClassLoader().toString())) {
+/*                    String classInnerName = method.getDeclaringClass().getName().toString(); //类的内部表示
+                    String signature = method.getSignature(); //方法签名*/
+
                     //记录所有类与各自的方法
-                    boolean existFlag=false;
-                    for(AugEntry augEntry:classRecord){
-                        if(augEntry.iClass.equals(method.getDeclaringClass())){
-                            existFlag=true;
+                    boolean existFlag = false;
+                    for (AugEntry augEntry : classRecord) {
+                        if (augEntry.iClass.equals(method.getDeclaringClass())) {
+                            existFlag = true;
                             augEntry.tryAddMethod(method);
                         }
                     }
-                    if(!existFlag) {
+                    if (!existFlag) {
                         AugEntry augEntry = new AugEntry(method.getDeclaringClass());
                         augEntry.tryAddMethod(method);
                         classRecord.add(augEntry);
@@ -45,29 +49,32 @@ public class AugUtil {
 //                    System.out.println(classInnerName+" "+signature);
 
                     //分别记录类、方法等级的边
-                    Iterator<CGNode> pred=cg.getPredNodes(node); //pred记录了当前方法调用了哪些方法
-                    while(pred.hasNext()){
-                        CGNode nd=pred.next();
-                        if(nd.getMethod() instanceof ShrikeBTMethod){
-                            ShrikeBTMethod methodEnd=(ShrikeBTMethod)nd.getMethod();
-                            //记录类级的边
-                            boolean classEdgeExistFlag=false;
-                            for(ClassEdge classEdge:classEdgePairs){
-                                if(classEdge.begin.equals(method.getDeclaringClass())&&
-                                classEdge.end.equals(methodEnd.getDeclaringClass()))
-                                    classEdgeExistFlag=true;
-                            }
-                            if(!classEdgeExistFlag){
-                                classEdgePairs.add(new ClassEdge(method.getDeclaringClass(),methodEnd.getDeclaringClass()));
-                            }
-                            //记录方法级的边
-                            boolean methodEdgeExistFlag=false;
-                            for(MethodEdge methodEdge:methodEdgePairs){
-                                if(methodEdge.begin.equals(method)&&methodEdge.end.equals(methodEnd))
-                                    methodEdgeExistFlag=true;
-                            }
-                            if(!methodEdgeExistFlag){
-                                methodEdgePairs.add(new MethodEdge(method,methodEnd));
+                    Iterator<CGNode> pred = cg.getPredNodes(node); //pred记录了当前方法调用了哪些方法
+                    while (pred.hasNext()) {
+                        CGNode nd = pred.next();
+                        if (nd.getMethod() instanceof ShrikeBTMethod) {
+                            ShrikeBTMethod methodEnd = (ShrikeBTMethod) nd.getMethod();
+                            if ("Application".equals(methodEnd.getDeclaringClass().getClassLoader().toString())) {
+                                //记录类级的边
+                                boolean classEdgeExistFlag = false;
+                                for (ClassEdge classEdge : classEdgePairs) {
+                                    if (classEdge.begin.equals(method.getDeclaringClass()) &&
+                                            classEdge.end.equals(methodEnd.getDeclaringClass()))
+                                        classEdgeExistFlag = true;
+                                }
+                                if (!classEdgeExistFlag) {
+                                    classEdgePairs.add(new ClassEdge(method.getDeclaringClass(), methodEnd.getDeclaringClass()));
+                                }
+                                //记录方法级的边
+                                boolean methodEdgeExistFlag = false;
+                                for (MethodEdge methodEdge : methodEdgePairs) {
+                                    if (methodEdge.begin.equals(method) && methodEdge.end.equals(methodEnd))
+                                        methodEdgeExistFlag = true;
+                                }
+                                if (!methodEdgeExistFlag) {
+                                    methodEdgePairs.add(new MethodEdge(method, methodEnd));
+
+                                }
                             }
                         }
                     }
@@ -76,22 +83,129 @@ public class AugUtil {
             }
         }
     }
-    public void classLevelSelect(){
 
+    private void parseChangeInfo() throws IOException {
+        File changeInfoFile = new File(path);
+        assert changeInfoFile.exists();
+        BufferedReader bufferedReader = new BufferedReader(new FileReader(changeInfoFile));
+        String temp = null;
+        StringBuffer sb = new StringBuffer();
+        temp = bufferedReader.readLine();
+        while (temp != null) {
+            sb.append(temp);
+            temp = bufferedReader.readLine();
+        }
+        this.changeInfo = sb.toString().split("\n");
     }
-    public void methodLevelSelect(){
 
+    /**
+     * @Description: 判断一个类是否属于测试类
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    private boolean judTestClass(IClass iClass) {
+        return true;
     }
-    //TODO
-    private void outputDotFile(){}
 
-    public AugUtil(CHACallGraph cg,String change_info){
-        this.cg=cg;
-        this.path=change_info;
-        this.classEdgePairs=new ArrayList<>();
-        this.methodEdgePairs=new ArrayList<>();
-        this.classRecord=new ArrayList<>();
+    /**
+     * @Description: 根据变更记录类级选取变更生产类调用的测试类下所有方法
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    public void classLevelSelect() {
+        ArrayList<String> changeClasses = new ArrayList<>();
+        ArrayList<IClass> affectedClasses=new ArrayList<>();
+        for (String info : changeInfo) {
+            String[] infos = info.split("\\s");
+            assert infos.length == 2;
+            if (changeClasses.indexOf(infos[0]) == -1) {
+                changeClasses.add(infos[0]);
+            }
+        }
+        //找到变更的类调用的测试类
+        for (String classBegin : changeClasses) {
+            for(ClassEdge classEdge:classEdgePairs){
+                if(classEdge.begin.getName().toString().equals(classBegin)){
+                    if(judTestClass(classEdge.end)){
+                        affectedClasses.add(classEdge.end);
+                    }
+                }
+            }
+        }
+        //将受影响的测试类下的所有方法加入选择结果中
+        for(IClass iClass:affectedClasses){
+            AugEntry affectedClass = null;
+            for(AugEntry augEntry:classRecord){
+                if(augEntry.iClass.equals(iClass)){
+                    affectedClass=augEntry;
+                    break;
+                }
+            }
+            selectedMethods=new ArrayList<>();
+            assert affectedClass != null;
+            selectedMethods.addAll(affectedClass.methods);
+        }
+    }
+
+    /**
+     * @Description: 根据变更记录直接选取变更生产方法调用的属于测试类的方法
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    public void methodLevelSelect() {
+        //TODO
+    }
+
+    /**
+     * @Description: 将两个等级记录edge的ArrayList的内容遍历输出成dot文件
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    private void outputDotFile() throws IOException {
+        String dotName = "MoreTriangle";
+        String dotClassFileBegin = "digraph " + dotName + "_class {\n";
+        String dotMethodFileBegin = "digraph " + dotName + "_method {\n";
+        String dotClassFileContent = "";
+        String dotMethodFileContent = "";
+        String dotFileEnd = "}";
+        //遍历类级
+        for (ClassEdge classEdge : classEdgePairs) {
+            //获取类的内部表示
+            dotClassFileContent += "\t\"" + classEdge.begin.getName().toString() + "\" -> \"" +
+                    classEdge.end.getName().toString() + "\";\n";
+        }
+        File dotClassFile = new File("./dotFiles/class-" + dotName.toUpperCase() + ".dot");
+        if (!dotClassFile.exists()) {
+            dotClassFile.createNewFile();
+        }
+        FileOutputStream outputStream = new FileOutputStream(dotClassFile);
+        PrintStream printStream = new PrintStream(outputStream);
+        printStream.print(dotClassFileBegin + dotClassFileContent + dotFileEnd);
+
+        //遍历方法级
+        for (MethodEdge methodEdge : methodEdgePairs) {
+            //获取方法签名
+            dotMethodFileContent += "\t\"" + methodEdge.begin.getSignature() + "\" -> \"" +
+                    methodEdge.end.getSignature() + "\";\n";
+        }
+        File dotMethodFile = new File("./dotFiles/method-" + dotName.toUpperCase() + ".dot");
+        if (!dotMethodFile.exists()) {
+            dotMethodFile.createNewFile();
+        }
+        outputStream = new FileOutputStream(dotMethodFile);
+        printStream = new PrintStream(outputStream);
+        printStream.print(dotMethodFileBegin + dotMethodFileContent + dotFileEnd);
+    }
+
+    public AugUtil(CHACallGraph cg, String change_info) throws IOException {
+        this.cg = cg;
+        this.path = change_info;
+        this.classEdgePairs = new ArrayList<>();
+        this.methodEdgePairs = new ArrayList<>();
+        this.classRecord = new ArrayList<>();
         getDAG();
-        System.out.println("Test");
+        //dotFile输出完成后弃用该方法
+        /*outputDotFile();*/
+        parseChangeInfo();
     }
 }
