@@ -4,9 +4,11 @@ import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.ShrikeBTMethod;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.cha.CHACallGraph;
+import com.ibm.wala.types.annotations.Annotation;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 
 /**
@@ -24,6 +26,11 @@ public class AugUtil {
     private ArrayList<AugEntry> classRecord;
     private ArrayList<ShrikeBTMethod> selectedMethods;
 
+    /**
+     * @Description: 获取非自带类的图信息
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
     public void getDAG() {
         for (CGNode node : cg) {
             if (node.getMethod() instanceof ShrikeBTMethod) {
@@ -46,7 +53,7 @@ public class AugUtil {
                         classRecord.add(augEntry);
                     }
 
-//                    System.out.println(classInnerName+" "+signature);
+//                  System.out.println(classInnerName+" "+signature);
 
                     //分别记录类、方法等级的边
                     Iterator<CGNode> pred = cg.getPredNodes(node); //pred记录了当前方法调用了哪些方法
@@ -73,7 +80,6 @@ public class AugUtil {
                                 }
                                 if (!methodEdgeExistFlag) {
                                     methodEdgePairs.add(new MethodEdge(method, methodEnd));
-
                                 }
                             }
                         }
@@ -84,6 +90,11 @@ public class AugUtil {
         }
     }
 
+    /**
+     * @Description: 从路径解析变更文件，存储到changeInfo数组中
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
     private void parseChangeInfo() throws IOException {
         File changeInfoFile = new File(path);
         assert changeInfoFile.exists();
@@ -92,19 +103,48 @@ public class AugUtil {
         StringBuffer sb = new StringBuffer();
         temp = bufferedReader.readLine();
         while (temp != null) {
-            sb.append(temp);
+            sb.append(temp+"\n");
             temp = bufferedReader.readLine();
         }
         this.changeInfo = sb.toString().split("\n");
     }
 
     /**
-     * @Description: 判断一个类是否属于测试类
+     * @Description: 判断一个方法是否属于测试方法
      * @Author: Li Yongshao
      * @date: 2020/11/17
      */
-    private boolean judTestClass(IClass iClass) {
-        return true;
+    private boolean judTestMethod(ShrikeBTMethod method) {
+        //找到方法的所有注解，比较是否有junit下的单元测试
+        Collection<Annotation> annotations = method.getAnnotations();
+        boolean isTestMethodFlag = false;
+        for (Annotation annotation : annotations) {
+            String test = annotation.getType().getName().toString();
+            if (annotation.getType().getName().toString().equals("Lorg/junit/Test")) {
+                isTestMethodFlag = true;
+                break;
+            }
+        }
+        return isTestMethodFlag;
+    }
+
+    /**
+     * @Description: 从selectedMethods输出被选择的测试方法
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    private void outputSelectedMethodFile(String typeOfLevel) throws IOException {
+        File selectedMethodFile = new File("./selection-" + typeOfLevel + ".txt");
+        if (!selectedMethodFile.exists()) {
+            selectedMethodFile.createNewFile();
+        }
+        FileOutputStream fileOutputStream = new FileOutputStream(selectedMethodFile);
+        PrintStream printStream = new PrintStream(fileOutputStream);
+        for (ShrikeBTMethod method : selectedMethods) {
+            String classInnerName = method.getDeclaringClass().getName().toString();
+            String signature = method.getSignature();
+            printStream.println(classInnerName + " " + signature);
+        }
     }
 
     /**
@@ -112,9 +152,9 @@ public class AugUtil {
      * @Author: Li Yongshao
      * @date: 2020/11/17
      */
-    public void classLevelSelect() {
+    public void classLevelSelect() throws IOException {
         ArrayList<String> changeClasses = new ArrayList<>();
-        ArrayList<IClass> affectedClasses=new ArrayList<>();
+        ArrayList<IClass> affectedClasses = new ArrayList<>();
         for (String info : changeInfo) {
             String[] infos = info.split("\\s");
             assert infos.length == 2;
@@ -124,27 +164,33 @@ public class AugUtil {
         }
         //找到变更的类调用的测试类
         for (String classBegin : changeClasses) {
-            for(ClassEdge classEdge:classEdgePairs){
-                if(classEdge.begin.getName().toString().equals(classBegin)){
-                    if(judTestClass(classEdge.end)){
-                        affectedClasses.add(classEdge.end);
-                    }
+            for (ClassEdge classEdge : classEdgePairs) {
+                //匹配类名
+                if (classEdge.begin.getName().toString().equals(classBegin)) {
+                    affectedClasses.add(classEdge.end);
                 }
             }
         }
         //将受影响的测试类下的所有方法加入选择结果中
-        for(IClass iClass:affectedClasses){
+        for (IClass iClass : affectedClasses) {
             AugEntry affectedClass = null;
-            for(AugEntry augEntry:classRecord){
-                if(augEntry.iClass.equals(iClass)){
-                    affectedClass=augEntry;
+            for (AugEntry augEntry : classRecord) {
+                if (augEntry.iClass.equals(iClass)) {
+                    affectedClass = augEntry;
                     break;
                 }
             }
-            selectedMethods=new ArrayList<>();
             assert affectedClass != null;
-            selectedMethods.addAll(affectedClass.methods);
+            for (ShrikeBTMethod method : affectedClass.methods) {
+                if (judTestMethod(method)) {
+                    if(selectedMethods.indexOf(method)==-1) {
+                        selectedMethods.add(method);
+                    }
+                }
+            }
         }
+        //输出
+        outputSelectedMethodFile("class");
     }
 
     /**
@@ -152,8 +198,24 @@ public class AugUtil {
      * @Author: Li Yongshao
      * @date: 2020/11/17
      */
-    public void methodLevelSelect() {
-        //TODO
+    public void methodLevelSelect() throws IOException {
+        for (String info : changeInfo) {
+            String[] infos = info.split("\\s");
+            assert infos.length == 2;
+            for(MethodEdge methodEdge:methodEdgePairs){
+                //匹配类名与方法签名
+                if(methodEdge.begin.getDeclaringClass().getName().toString().equals(infos[0])&&
+                    methodEdge.begin.getSignature().equals(infos[1])){
+                    if(judTestMethod(methodEdge.end)){
+                        if(selectedMethods.indexOf(methodEdge.end)==-1) {
+                            selectedMethods.add(methodEdge.end);
+                        }
+                    }
+                }
+            }
+        }
+        //输出
+        outputSelectedMethodFile("method");
     }
 
     /**
@@ -197,12 +259,18 @@ public class AugUtil {
         printStream.print(dotMethodFileBegin + dotMethodFileContent + dotFileEnd);
     }
 
+    /**
+     * @Description: 初始化ArrayList并负责调用初始化的DAG信息获取、路径解析
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
     public AugUtil(CHACallGraph cg, String change_info) throws IOException {
         this.cg = cg;
         this.path = change_info;
         this.classEdgePairs = new ArrayList<>();
         this.methodEdgePairs = new ArrayList<>();
         this.classRecord = new ArrayList<>();
+        this.selectedMethods = new ArrayList<>();
         getDAG();
         //dotFile输出完成后弃用该方法
         /*outputDotFile();*/
