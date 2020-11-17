@@ -63,19 +63,19 @@ public class InitUtil {
      * @date: 2020/11/16
      */
     private static void initScope(String path) throws InvalidClassFileException {
-        File file=new File(path);
-        if(file.exists()){
-            File[] files=file.listFiles();
-            if(!(files==null||files.length==0)){
-                for(File subFile:files){
-                    if(subFile.isDirectory()){
+        File file = new File(path);
+        if (file.exists()) {
+            File[] files = file.listFiles();
+            if (!(files == null || files.length == 0)) {
+                for (File subFile : files) {
+                    if (subFile.isDirectory()) {
                         initScope(subFile.getAbsolutePath());
-                    }else if(subFile.getName().endsWith(".class")){  //将class文件加入域
-                        scope.addClassFileToScope(ClassLoaderReference.Application,subFile);
+                    } else if (subFile.getName().endsWith(".class")) {  //将class文件加入域
+                        scope.addClassFileToScope(ClassLoaderReference.Application, subFile);
                     }
                 }
             }
-        }else {
+        } else {
             System.out.println("File not exists!");
         }
     }
@@ -87,25 +87,24 @@ public class InitUtil {
      * @date: 2020/11/16
      */
     private static void initGraph() throws ClassHierarchyException, CancelException {
-        ClassHierarchy cha= ClassHierarchyFactory.makeWithRoot(scope);
-        Iterable<Entrypoint> eps=new AllApplicationEntrypoints(scope,cha);
-        cg=new CHACallGraph(cha);
+        ClassHierarchy cha = ClassHierarchyFactory.makeWithRoot(scope);
+        Iterable<Entrypoint> eps = new AllApplicationEntrypoints(scope, cha);
+        cg = new CHACallGraph(cha);
         cg.init(eps);
     }
 
     public static void main(String[] args) throws IOException, InvalidClassFileException, ClassHierarchyException, CancelException {
         init();
-        if(args.length==0){
+        if (args.length == 0) {
             parseArgs(new String[]{"-c",
                     "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\target",
                     "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\data\\change_info.txt"});
-        }
-        else parseArgs(args);
+        } else parseArgs(args);
         initScope(target);
         initGraph();
-        if(selectType==0)
-            new AugUtil(cg,change_info).classLevelSelect();
-        else if(selectType==1)
-            new AugUtil(cg,change_info).methodLevelSelect();
+        if (selectType == 0)
+            new AugUtil(cg, change_info).classLevelSelect();
+        else if (selectType == 1)
+            new AugUtil(cg, change_info).methodLevelSelect();
     }
 }

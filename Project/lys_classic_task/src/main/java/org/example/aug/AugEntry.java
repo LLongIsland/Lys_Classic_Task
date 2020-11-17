@@ -15,12 +15,13 @@ public class AugEntry {
     public IClass iClass;
     public ArrayList<ShrikeBTMethod> methods;
 
-    public void tryAddMethod(ShrikeBTMethod method){
-        if(this.methods.indexOf(method)==-1)
+    public void tryAddMethod(ShrikeBTMethod method) {
+        if (this.methods.indexOf(method) == -1)
             this.methods.add(method);
     }
-    public AugEntry(IClass iClass){
-        this.iClass=iClass;
-        this.methods=new ArrayList<>();
+
+    public AugEntry(IClass iClass) {
+        this.iClass = iClass;
+        this.methods = new ArrayList<>();
     }
 }

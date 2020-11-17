@@ -9,9 +9,10 @@ import com.ibm.wala.classLoader.ShrikeBTMethod;
  * @create: 2020-11-17 01:13
  */
 public class MethodEdge {
-    public ShrikeBTMethod begin,end;
-    public MethodEdge(ShrikeBTMethod begin,ShrikeBTMethod end){
-        this.begin=begin;
-        this.end=end;
+    public ShrikeBTMethod begin, end;
+
+    public MethodEdge(ShrikeBTMethod begin, ShrikeBTMethod end) {
+        this.begin = begin;
+        this.end = end;
     }
 }

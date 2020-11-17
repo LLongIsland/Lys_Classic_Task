@@ -103,7 +103,7 @@ public class AugUtil {
         StringBuffer sb = new StringBuffer();
         temp = bufferedReader.readLine();
         while (temp != null) {
-            sb.append(temp+"\n");
+            sb.append(temp + "\n");
             temp = bufferedReader.readLine();
         }
         this.changeInfo = sb.toString().split("\n");
@@ -183,7 +183,7 @@ public class AugUtil {
             assert affectedClass != null;
             for (ShrikeBTMethod method : affectedClass.methods) {
                 if (judTestMethod(method)) {
-                    if(selectedMethods.indexOf(method)==-1) {
+                    if (selectedMethods.indexOf(method) == -1) {
                         selectedMethods.add(method);
                     }
                 }
@@ -202,12 +202,12 @@ public class AugUtil {
         for (String info : changeInfo) {
             String[] infos = info.split("\\s");
             assert infos.length == 2;
-            for(MethodEdge methodEdge:methodEdgePairs){
+            for (MethodEdge methodEdge : methodEdgePairs) {
                 //匹配类名与方法签名
-                if(methodEdge.begin.getDeclaringClass().getName().toString().equals(infos[0])&&
-                    methodEdge.begin.getSignature().equals(infos[1])){
-                    if(judTestMethod(methodEdge.end)){
-                        if(selectedMethods.indexOf(methodEdge.end)==-1) {
+                if (methodEdge.begin.getDeclaringClass().getName().toString().equals(infos[0]) &&
+                        methodEdge.begin.getSignature().equals(infos[1])) {
+                    if (judTestMethod(methodEdge.end)) {
+                        if (selectedMethods.indexOf(methodEdge.end) == -1) {
                             selectedMethods.add(methodEdge.end);
                         }
                     }
