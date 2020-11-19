@@ -237,13 +237,13 @@ public class AugUtil {
         getMethodClosure(changeInfo2Array);
 
         //筛选测试方法
-        ArrayList<ShrikeBTMethod>selectedTestMethods=new ArrayList<>();
-        for(ShrikeBTMethod method:selectedMethods){
-            if(judTestMethod(method)){
+        ArrayList<ShrikeBTMethod> selectedTestMethods = new ArrayList<>();
+        for (ShrikeBTMethod method : selectedMethods) {
+            if (judTestMethod(method)) {
                 selectedTestMethods.add(method);
             }
         }
-        selectedMethods=selectedTestMethods;
+        selectedMethods = selectedTestMethods;
 
         //输出
         outputSelectedMethodFile("method");
