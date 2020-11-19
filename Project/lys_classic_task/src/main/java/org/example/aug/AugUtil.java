@@ -8,6 +8,7 @@ import com.ibm.wala.types.annotations.Annotation;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -119,7 +120,6 @@ public class AugUtil {
         Collection<Annotation> annotations = method.getAnnotations();
         boolean isTestMethodFlag = false;
         for (Annotation annotation : annotations) {
-            String test = annotation.getType().getName().toString();
             if (annotation.getType().getName().toString().equals("Lorg/junit/Test")) {
                 isTestMethodFlag = true;
                 break;
@@ -194,26 +194,57 @@ public class AugUtil {
     }
 
     /**
-     * @Description: 根据变更记录直接选取变更生产方法调用的属于测试类的方法
+     * @Description: 解决方法级粒度的依赖传递问题
+     * @Param: 转化成Array的变更信息，实际上是生成中的闭包
      * @Author: Li Yongshao
-     * @date: 2020/11/17
+     * @date: 2020/11/19
      */
-    public void methodLevelSelect() throws IOException {
-        for (String info : changeInfo) {
+    private void getMethodClosure(ArrayList<String> changeInfos) {
+        ArrayList<String> addClosure = new ArrayList<>();
+        for (String info : changeInfos) {
             String[] infos = info.split("\\s");
             assert infos.length == 2;
             for (MethodEdge methodEdge : methodEdgePairs) {
                 //匹配类名与方法签名
                 if (methodEdge.begin.getDeclaringClass().getName().toString().equals(infos[0]) &&
                         methodEdge.begin.getSignature().equals(infos[1])) {
-                    if (judTestMethod(methodEdge.end)) {
-                        if (selectedMethods.indexOf(methodEdge.end) == -1) {
-                            selectedMethods.add(methodEdge.end);
+                    if (selectedMethods.indexOf(methodEdge.end) == -1) {
+                        selectedMethods.add(methodEdge.end);
+                        String method2String = methodEdge.end.getDeclaringClass().getName().toString() + " " +
+                                methodEdge.end.getSignature();
+                        if (changeInfos.indexOf(method2String) == -1) {
+                            addClosure.add(method2String);
                         }
                     }
                 }
             }
         }
+        //如果没有新增的未选中方法，那么说明已经结束生成闭包
+        if (addClosure.size() != 0) {
+            changeInfos.addAll(addClosure);
+            getMethodClosure(changeInfos);
+        }
+    }
+
+    /**
+     * @Description: 根据变更记录直接选取变更生产方法调用的属于测试类的方法
+     * @Author: Li Yongshao
+     * @date: 2020/11/17
+     */
+    public void methodLevelSelect() throws IOException {
+        //生成受影响方法的闭包，解决依赖传递问题
+        ArrayList<String> changeInfo2Array = new ArrayList<String>(Arrays.asList(changeInfo));
+        getMethodClosure(changeInfo2Array);
+
+        //筛选测试方法
+        ArrayList<ShrikeBTMethod>selectedTestMethods=new ArrayList<>();
+        for(ShrikeBTMethod method:selectedMethods){
+            if(judTestMethod(method)){
+                selectedTestMethods.add(method);
+            }
+        }
+        selectedMethods=selectedTestMethods;
+
         //输出
         outputSelectedMethodFile("method");
     }

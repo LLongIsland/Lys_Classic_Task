@@ -96,9 +96,11 @@ public class InitUtil {
     public static void main(String[] args) throws IOException, InvalidClassFileException, ClassHierarchyException, CancelException {
         init();
         if (args.length == 0) {
-            parseArgs(new String[]{"-c",
-                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\target",
-                    "C:\\Users\\Kotori\\Desktop\\经典大作业\\ClassicAutomatedTesting\\2-DataLog\\data\\change_info.txt"});
+            String projectName="5-MoreTriangle";
+            parseArgs(new String[]{
+                    "-m",
+                    "C:\\Users\\Kotori\\Desktop\\auto\\Data\\"+projectName+"\\target",
+                    "C:\\Users\\Kotori\\Desktop\\auto\\Data\\"+projectName+"\\data\\change_info.txt"});
         } else parseArgs(args);
         initScope(target);
         initGraph();
